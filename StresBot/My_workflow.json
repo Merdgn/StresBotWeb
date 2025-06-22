@@ -1,0 +1,420 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"stres\": {{ $json[\"stres\"] ?? 0 }},\n  \"duygu_durumu\": \"{{ $json[\"duygu_durumu\"] ?? '' }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        0
+      ],
+      "id": "9f6213ff-7f0d-4efd-8a16-61b306f40948",
+      "name": "Veri Formatla"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5babf548-f5f9-4c1b-9805-305a139e73dc",
+              "leftValue": "={{$json[\"stres\"]}}\n",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "32db5e11-ec31-4518-8946-627b97accb47",
+      "name": "Stres Yüksek Mi?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eab431d9-6f94-4977-b62a-e175038dedfe",
+              "name": "prompt",
+              "value": "=Kullanıcının stres seviyesi: {{$json[\"stres\"]}}. Duygu durumu: \"{{$json[\"duygu_durumu\"]}}\". Bu ifadelere göre sistemimiz otomatik olarak duygu puanını {{$json[\"duygu_puani\"]}} olarak belirlemiştir.\nLütfen bu verilere göre, psikolojik açıdan duyarlı, empatik ve destekleyici bir öneriler üret.\nMesaj  sade ve samimi olmalı. Kullanıcının stresini hafifletecek  etkili cümlelerle yanıt ver.\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        -100
+      ],
+      "id": "47c91d8e-d500-4948-bd48-b1f5dd8360f8",
+      "name": "Prompt Hazırla (Yüksek Stres)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c3db9796-efa0-4150-8acf-7d7b254abeb1",
+              "name": "prompt",
+              "value": "=Kullanıcının stres seviyesi: {{$json[\"stres\"]}}. Duygu durumu: \"{{$json[\"duygu_durumu\"]}}\". Bu ifadelere göre sistemimiz duygu puanını {{$json[\"duygu_puani\"]}} olarak belirlemiştir.\nStres seviyesi düşük olmasına rağmen, kullanıcının duygusal hali göz önüne alınarak motive edici, içten ve rahatlatıcı bir öneriler ver.\nMesajların pozitif, sıcak ve insanı gülümseten bir tonda olmalı.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        100
+      ],
+      "id": "1bd28d36-557a-486b-9bf8-1f57c6d8a94f",
+      "name": "Prompt Hazırla (Düşük Stres)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-002:generateContent?key=AIzaSyBo5223lnT6KL70t_vNbn4SLSr3lE-JIAY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-goog-api-key",
+              "value": "=AIzaSyBo5223lnT6KL70t_vNbn4SLSr3lE-JIAY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "JSON",
+        "body": "={{ JSON.stringify({\n  contents: [\n    {\n      parts: [\n        {\n          text: $json[\"prompt\"]\n        }\n      ]\n    }\n  ]\n}) }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "id": "1b656dae-fad8-4972-8bbe-8485cb0d8acd",
+      "name": "Gemini API"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nfor (const item of items) {\n  const duyguRaw = item.json.duygu_durumu;\n  const duygu = typeof duyguRaw === \"string\" ? duyguRaw.toLowerCase() : \"\";\n\n  if (\n    duygu.includes(\"mutlu\") ||\n    duygu.includes(\"rahat\") ||\n    duygu.includes(\"iyi\") ||\n    duygu.includes(\"pozitif\") ||\n    duygu.includes(\"huzurlu\")\n  ) {\n    item.json.duygu_puani = 1;\n  } else if (\n    duygu.includes(\"yalnız\") ||\n    duygu.includes(\"kaygılı\") ||\n    duygu.includes(\"üzgün\") ||\n    duygu.includes(\"bıkkın\") ||\n    duygu.includes(\"çökmüş\") ||\n    duygu.includes(\"korkmuş\") ||\n    duygu.includes(\"endişeli\")\n  ) {\n    item.json.duygu_puani = 3;\n  } else {\n    item.json.duygu_puani = 2;\n  }\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        0
+      ],
+      "id": "94c08788-4f07-4a38-89a5-0ea5adfcfcba",
+      "name": "Duygu Puanı Belirle"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        -100
+      ],
+      "id": "8319a254-21a8-478c-81e2-b0d329da6ae7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a62957b3-67a7-46e4-9f4f-5da4748d2ccc",
+              "name": "ai_cevabi",
+              "value": "={\n   {{$node[\"Gemini API\"].json[\"candidates\"][0][\"content\"][\"parts\"][0][\"text\"]}},\n \n}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1320,
+        -100
+      ],
+      "id": "9ac39dd8-0907-42dc-bf94-019b834fdae4",
+      "name": "Cevap"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "projectId": "stresbot-1c980",
+        "collection": "cevaplar",
+        "columns": "={\n  \"ai_cevabi\": {{$node[\"Cevap\"].json[\"ai_cevabi\"]}},\n  \"duygu_durumu\": {{$node[\"Duygu Puanı Belirle\"].json[\"duygu_durumu\"]}},\n  \"duygu_puani\": {{$node[\"Duygu Puanı Belirle\"].json[\"duygu_puani\"]}},\n  \"stres\": {{$node[\"Veri Formatla\"].json[\"stres\"]}},\n  \"etiket\": {{$node[\"Veri Etiketleme\"].json[\"etiket\"]}}\n}\n"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        -380
+      ],
+      "id": "420fec1b-e393-4e18-8553-fbf888f62722",
+      "name": "Google Cloud Firestore",
+      "credentials": {
+        "googleFirebaseCloudFirestoreOAuth2Api": {
+          "id": "yMBlvbQnm3hOZOhQ",
+          "name": "Google Firebase Cloud Firestore account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const stres = item.json.stres;\n\nif (stres >= 8) {\n  item.json.etiket = \"yüksek_risk\";\n} else if (stres >= 4 && stres <= 7) {\n  item.json.etiket = \"gözlem_altında\";\n} else {\n  item.json.etiket = \"düşük_risk\";\n}\n\nreturn item;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "cb6a7607-8202-42d6-bd1d-82d493dd8afe",
+      "name": "Veri Etiketleme"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        1860,
+        -280
+      ],
+      "id": "6b3c8639-df98-41b2-b0d9-5514d448cd15",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"hata\": true,\n  \"mesaj\": \"Üzgünüz, bir hata oluştu. Lütfen daha sonra tekrar deneyin.\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2300,
+        -280
+      ],
+      "id": "d4b6ee53-34c8-412e-8ea6-62b7e9caf14e",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "16f1d2a4-6f07-4c05-a176-76d4aca930e4",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        -280
+      ],
+      "id": "4d1bcef3-1de6-4c58-a8a0-decea0408c3f",
+      "name": "Webhook1",
+      "webhookId": "16f1d2a4-6f07-4c05-a176-76d4aca930e4"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stres-veri",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "66d06e26-9e24-45e5-9d8d-7c03d01eade1",
+      "name": "Webhook",
+      "webhookId": "3eac0218-ff7e-4006-84f0-48efcf375fdc"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Veri Formatla": {
+      "main": [
+        [
+          {
+            "node": "Duygu Puanı Belirle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stres Yüksek Mi?": {
+      "main": [
+        [
+          {
+            "node": "Prompt Hazırla (Yüksek Stres)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prompt Hazırla (Düşük Stres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Hazırla (Yüksek Stres)": {
+      "main": [
+        [
+          {
+            "node": "Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini API": {
+      "main": [
+        [
+          {
+            "node": "Cevap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Hazırla (Düşük Stres)": {
+      "main": [
+        [
+          {
+            "node": "Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duygu Puanı Belirle": {
+      "main": [
+        [
+          {
+            "node": "Veri Etiketleme",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Cevap": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Cloud Firestore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veri Etiketleme": {
+      "main": [
+        [
+          {
+            "node": "Stres Yüksek Mi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Veri Formatla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "75dfd061-bd48-41e2-b306-befa86ac0379",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "04c37d1da6e5568912f2835be0cbf1819e60bafb66c10356e72e5f5c6a741505"
+  },
+  "id": "20Pepq8fsVoTzcQ2",
+  "tags": []
+}
